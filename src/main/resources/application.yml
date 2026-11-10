@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5434/workflow
+    username: tickets
+    password: tickets
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false

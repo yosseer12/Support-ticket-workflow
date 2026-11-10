@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support Ticket Workflow - test console</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#667085; --line:#e2e5ea; --accent:#2563eb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161a; --card:#1d2026; --text:#e8eaed; --muted:#9aa3b2; --line:#2e333b; --accent:#6b9bff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width:960px; margin:0 auto; padding:20px 16px 48px; }
+  h1 { font-size:20px; margin:0 0 14px; }
+  h2 { font-size:15px; margin:0 0 10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:14px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  input, select, textarea, button { font:inherit; padding:7px 10px; border-radius:7px; border:1px solid var(--line); background:var(--card); color:var(--text); }
+  input, textarea { flex:1 1 200px; }
+  button { cursor:pointer; background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.ghost { background:transparent; color:var(--accent); }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:7px 6px; border-bottom:1px solid var(--line); font-size:14px; }
+  th { color:var(--muted); font-weight:600; }
+  .wrap { overflow-x:auto; }
+  .badge { padding:2px 8px; border-radius:99px; font-size:12px; border:1px solid var(--line); }
+  .OPEN{color:#b45309} .IN_PROGRESS{color:#2563eb} .ESCALATED{color:#dc2626} .RESOLVED{color:#7c3aed} .CLOSED{color:#16a34a}
+  #msg { min-height:20px; font-size:13px; color:var(--muted); }
+  #msg.err { color:#dc2626; }
+  .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Support Ticket Workflow - test console</h1>
+
+  <div class="card">
+    <h2>1. Log in as</h2>
+    <div class="row">
+      <select id="user">
+        <option value="customer">customer (create tickets)</option>
+        <option value="agent">agent (support-agents tasks)</option>
+        <option value="senior">senior (senior-agents tasks)</option>
+        <option value="admin">admin (validate resolution)</option>
+      </select>
+      <span class="muted">password = same as username</span>
+    </div>
+    <div id="msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Create a ticket</h2>
+    <div class="row">
+      <input id="title" placeholder="Title (e.g. VPN down)">
+      <select id="priority"><option>LOW</option><option>HIGH</option><option selected>URGENT</option></select>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <textarea id="desc" rows="2" placeholder="Description"></textarea>
+      <button id="create">Create ticket</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between; margin-bottom:8px">
+      <h2 style="margin:0">3. Tickets</h2>
+      <button class="ghost" id="refreshTickets">Refresh</button>
+    </div>
+    <div class="wrap"><table>
+      <thead><tr><th>ID</th><th>Title</th><th>Priority</th><th>Status</th></tr></thead>
+      <tbody id="tickets"></tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between; margin-bottom:8px">
+      <h2 style="margin:0">4. Tasks (agent, senior and admin only)</h2>
+      <div class="row">
+        <select id="group">
+          <option>support-agents</option><option selected>senior-agents</option><option>admins</option>
+        </select>
+        <button class="ghost" id="refreshTasks">Load tasks</button>
+      </div>
+    </div>
+    <div class="wrap"><table>
+      <thead><tr><th>Ticket</th><th>Task</th><th>Assignee</th><th></th></tr></thead>
+      <tbody id="tasks"></tbody>
+    </table></div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function say(text, isErr) { $('msg').textContent = text; $('msg').className = isErr ? 'err' : ''; }
+
+async function api(path, method = 'GET', body) {
+  const u = $('user').value;
+  const res = await fetch(path, {
+    method,
+    headers: {
+      'Authorization': 'Basic ' + btoa(u + ':' + u),
+      'X-Requested-With': 'XMLHttpRequest',
+      ...(body ? {'Content-Type': 'application/json'} : {})
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (res.status === 401) throw new Error('401: wrong credentials');
+  if (res.status === 403) throw new Error('403: ' + u + ' is not allowed to do this');
+  if (!res.ok) throw new Error(res.status + ': ' + (await res.text()).slice(0, 200));
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function loadTickets() {
+  try {
+    const list = await api('/api/tickets');
+    $('tickets').innerHTML = list.map(t =>
+      `<tr><td>${esc(t.id)}</td><td>${esc(t.title)}</td><td>${esc(t.priority)}</td>` +
+      `<td><span class="badge ${esc(t.status)}">${esc(t.status)}</span></td></tr>`).join('')
+      || '<tr><td colspan="4" class="muted">No tickets yet</td></tr>';
+    say('Tickets loaded as ' + $('user').value);
+  } catch (e) { say(e.message, true); }
+}
+
+async function loadTasks() {
+  try {
+    const list = await api('/api/tasks?group=' + encodeURIComponent($('group').value));
+    $('tasks').innerHTML = list.map(t =>
+      `<tr><td>#${esc(t.ticketId)}</td><td>${esc(t.name)}</td><td>${esc(t.assignee || '-')}</td>` +
+      `<td class="row"><button class="ghost" data-act="claim" data-id="${esc(t.id)}">Claim</button>` +
+      `<button data-act="complete" data-id="${esc(t.id)}">Complete</button></td></tr>`).join('')
+      || '<tr><td colspan="4" class="muted">No open tasks for this group</td></tr>';
+    say('Tasks loaded as ' + $('user').value);
+  } catch (e) { say(e.message, true); }
+}
+
+$('create').onclick = async () => {
+  try {
+    const t = await api('/api/tickets', 'POST', {
+      title: $('title').value, description: $('desc').value, priority: $('priority').value });
+    say('Ticket #' + t.id + ' created, process ' + t.processInstanceId + ' started');
+    $('title').value = ''; $('desc').value = '';
+    loadTickets();
+  } catch (e) { say(e.message, true); }
+};
+
+$('tasks').onclick = async ev => {
+  const b = ev.target.closest('button[data-act]');
+  if (!b) return;
+  try {
+    await api('/api/tasks/' + b.dataset.id + '/' + b.dataset.act, 'POST');
+    say('Task ' + b.dataset.act + ' done');
+    await loadTasks(); loadTickets();
+  } catch (e) { say(e.message, true); }
+};
+
+$('refreshTickets').onclick = loadTickets;
+$('refreshTasks').onclick = loadTasks;
+$('user').onchange = () => {
+  const map = {agent:'support-agents', senior:'senior-agents', admin:'admins'};
+  if (map[$('user').value]) $('group').value = map[$('user').value];
+  say('Now acting as ' + $('user').value);
+};
+loadTickets();
+</script>
+</body>
+</html>
