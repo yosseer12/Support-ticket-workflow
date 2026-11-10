@@ -32,7 +32,7 @@ Ticket created -> Set OPEN -> Urgent? --yes--> Handle urgent ticket (senior-agen
                                                                               Set CLOSED -> End
 ```
 
-The diagram itself is in `src/main/resources/processes/ticket-process.bpmn`. Open it with [Camunda Modeler](https://camunda.com/download/modeler/) to view or edit it.
+The diagram itself is in `src/main/resources/processes/ticket-process.bpmn`. Open it with [Camunda Modeler](https://camunda.com/download/modeler/) to view or edit it
 
 ## Tech stack
 
