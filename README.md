@@ -6,7 +6,6 @@ A customer opens a ticket, the process routes it by priority, agents handle it, 
 
 > Personal project built to practice Java, Spring Boot, BPM (Camunda) and Angular in a Full DevOps style setup (Docker, Maven, Git).
 
-## Screenshots
 
 
 ## Features
