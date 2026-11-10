@@ -8,9 +8,6 @@ A customer opens a ticket, the process routes it by priority, agents handle it, 
 
 ## Screenshots
 
-| BPMN process | Angular front end |
-|---|---|
-| ![BPMN diagram](docs/bpmn.png) | ![Angular UI](docs/ui.png) |
 
 ## Features
 
