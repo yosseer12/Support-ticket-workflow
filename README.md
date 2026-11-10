@@ -129,4 +129,4 @@ Example request body for `POST /api/tickets`:
 ## Author
 
 **Yousser Bouguerra**, Software Engineer
-[LinkedIn](https://www.linkedin.com/) | [GitHub](https://github.com/)
+[LinkedIn](www.linkedin.com/in/yousser-bouguerra-b22186200) 
